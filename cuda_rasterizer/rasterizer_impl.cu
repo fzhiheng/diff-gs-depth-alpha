@@ -447,3 +447,63 @@ void CudaRasterizer::Rasterizer::backward(
 		(glm::vec3*)dL_dscale,
 		(glm::vec4*)dL_drot), debug)
 }
+
+
+void CudaRasterizer::Rasterizer::backward_label(
+        const int P, int R,
+        const float* background,
+        const int width, int height,
+        const float* colors_precomp,
+        const float* alphas,
+        const int* radii,
+        char* geom_buffer,
+        char* binning_buffer,
+        char* img_buffer,
+        const float* dL_dpix,
+        const float* dL_dpix_depth,
+        const float* dL_dalphas,
+        float* dL_dmean2D,
+        float* dL_dconic,
+        float* dL_dopacity,
+        float* dL_dcolor,
+        float* dL_ddepth,
+        bool debug)
+{
+    GeometryState geomState = GeometryState::fromChunk(geom_buffer, P);
+    BinningState binningState = BinningState::fromChunk(binning_buffer, R);
+    ImageState imgState = ImageState::fromChunk(img_buffer, width * height);
+
+    if (radii == nullptr)
+    {
+        radii = geomState.internal_radii;
+    }
+    const dim3 tile_grid((width + BLOCK_X - 1) / BLOCK_X, (height + BLOCK_Y - 1) / BLOCK_Y, 1);
+    const dim3 block(BLOCK_X, BLOCK_Y, 1);
+
+    // Compute loss gradients w.r.t. 2D mean position, conic matrix,
+    // opacity and RGB of Gaussians from per-pixel loss gradients.
+    // If we were given precomputed colors and not SHs, use them.
+    const float* color_ptr = (colors_precomp != nullptr) ? colors_precomp : geomState.rgb;
+    const float* depth_ptr = geomState.depths;
+    CHECK_CUDA(BACKWARD::render(
+            tile_grid,
+            block,
+            imgState.ranges,
+            binningState.point_list,
+            width, height,
+            background,
+            geomState.means2D,
+            geomState.conic_opacity,
+            color_ptr,
+            depth_ptr,
+            alphas,
+            imgState.n_contrib,
+            dL_dpix,
+            dL_dpix_depth,
+            dL_dalphas,
+            (float3*)dL_dmean2D,
+            (float4*)dL_dconic,
+            dL_dopacity,
+            dL_dcolor,
+            dL_ddepth), debug)
+}

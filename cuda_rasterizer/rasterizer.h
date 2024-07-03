@@ -89,6 +89,26 @@ namespace CudaRasterizer
 			float* dL_dscale,
 			float* dL_drot,
 			bool debug);
+
+        static void backward_label(
+                const int P, int R,
+                const float* background,
+                const int width, int height,
+                const float* colors_precomp,
+                const float* alphas,
+                const int* radii,
+                char* geom_buffer,
+                char* binning_buffer,
+                char* image_buffer,
+                const float* dL_dpix,
+                const float* dL_dpix_depth,
+                const float* dL_dalphas,
+                float* dL_dmean2D,
+                float* dL_dconic,
+                float* dL_dopacity,
+                float* dL_dcolor,
+                float* dL_ddepth,
+                bool debug);
 	};
 };
 
